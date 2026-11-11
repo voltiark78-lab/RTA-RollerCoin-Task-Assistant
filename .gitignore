@@ -1,0 +1,8 @@
+# Local scan data
+latest-scan.json
+scan-history.json
+*.local.json
+
+# Local application data
+.DS_Store
+Thumbs.db
