@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RTA – TestApp 0.1</title>
+<style>
+:root{font-family:Segoe UI,Arial,sans-serif;color:#e8edf5;background:#111827}
+*{box-sizing:border-box}body{margin:0;padding:24px;background:linear-gradient(135deg,#111827,#172554);min-height:100vh}
+main{max-width:1120px;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+h1{margin:0;font-size:28px}.sub{color:#aab7ca;margin-top:6px}
+.panel{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:18px;margin-top:18px;box-shadow:0 8px 24px #0003}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}
+.stat{background:#0f172a;border-radius:12px;padding:14px}.stat b{display:block;font-size:25px;margin-top:5px}.muted{color:#9fb0c7;font-size:13px}
+button,.btn{border:0;border-radius:10px;padding:10px 14px;background:#2563eb;color:white;cursor:pointer;font-weight:600}
+button.secondary{background:#334155}button:disabled{opacity:.5;cursor:not-allowed}
+input,select,textarea{width:100%;background:#0f172a;color:#e8edf5;border:1px solid #475569;border-radius:9px;padding:10px;margin-top:6px}
+label{display:block;color:#cbd5e1;font-size:13px;margin:10px 0}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{flex:1}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.toolbar input{max-width:320px}
+table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;padding:11px 9px;border-bottom:1px solid #334155;font-size:14px}th{color:#9fb0c7;font-weight:600}
+.tag{display:inline-block;padding:4px 8px;border-radius:99px;background:#334155;font-size:12px}.new{background:#164e63}.survey{background:#4c1d95}
+.empty{text-align:center;color:#9fb0c7;padding:28px}
+.note{border-left:3px solid #60a5fa;padding:10px 12px;background:#172554;border-radius:7px;color:#cbd5e1;font-size:13px;margin-top:12px}
+.small{font-size:12px;color:#94a3b8}.mini{padding:7px 9px;font-size:12px}.gameRow{padding:12px 0;border-bottom:1px solid #334155}.gameGrid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:10px;align-items:end}@media(max-width:720px){.gameGrid{grid-template-columns:1fr 1fr}}.progress{height:8px;background:#334155;border-radius:9px;overflow:hidden;margin-top:8px}.progress span{display:block;height:100%;background:#60a5fa;width:0}
+@media(max-width:720px){body{padding:12px}.stats{grid-template-columns:repeat(2,1fr)}table{display:block;overflow:auto}}
+</style>
+</head>
+<body>
+<main>
+ <div class="top">
+  <div><h1>⚡ RTA – TestApp 0.1</h1><div class="sub">Lokaler Angebotsmanager · Testversion</div></div>
+  <div class="row" style="flex:0 0 auto"><button id="importBtn">Scan-JSON importieren</button><input id="file" type="file" accept=".json,application/json" hidden></div>
+ </div>
+ <div class="stats">
+  <div class="stat"><span class="muted">Angebote</span><b id="countAll">0</b></div>
+  <div class="stat"><span class="muted">Umfragen</span><b id="countSurveys">0</b></div>
+  <div class="stat"><span class="muted">Spiel-/App-Aufgaben</span><b id="countTasks">0</b></div>
+  <div class="stat"><span class="muted">Gesamtbelohnung im Scan</span><b id="countReward">0 RLT</b></div>
+ </div>
+ <section class="panel">
+  <div class="top"><div><h2 style="margin:0">Angebote aus dem Scanner</h2><div class="muted">Direkt verbunden mit dem lokalen RTA-Dienst · JSON-Import bleibt als Ersatz verfügbar</div></div><button class="secondary" id="clearBtn">Daten zurücksetzen</button></div>
+  <div class="note" id="bridgeStatus">Verbindung wird geprüft …</div>
+  <div class="toolbar">
+   <input id="search" placeholder="Angebote suchen …">
+   <select id="filter"><option value="all">Alle Angebote</option><option value="survey">Nur Umfragen</option><option value="task">Nur App-/Spielaufgaben</option></select>
+   <select id="sort"><option value="reward">Belohnung: hoch → niedrig</option><option value="rpm">RLT pro Minute</option><option value="name">Name A–Z</option></select>
+  </div>
+  <div id="offerArea" class="empty">Noch kein Scan importiert. Klicke oben auf „Scan-JSON importieren“.</div>
+ </section>
+ <section class="panel">
+  <h2 style="margin:0">Aufgabenstatus</h2>
+  <div class="muted">Wähle einen Status pro Angebot. Die Änderungen werden lokal im Browser gespeichert.</div>
+  <div id="statusArea" class="empty">Nach dem Import erscheinen hier deine Aufgaben.</div>
+ </section>
+
+ <section class="panel">
+  <div class="top"><div><h2 style="margin:0">Angebotsverlauf</h2><div class="muted">Vergleicht jeden neuen Scan mit dem vorherigen Scan.</div></div><button class="secondary" id="clearHistory">Verlauf löschen</button></div>
+  <div class="stats" style="margin-top:12px">
+   <div class="stat"><span class="muted">Neu im letzten Scan</span><b id="histNew">0</b></div>
+   <div class="stat"><span class="muted">Nicht mehr vorhanden</span><b id="histGone">0</b></div>
+   <div class="stat"><span class="muted">Belohnung geändert</span><b id="histChanged">0</b></div>
+   <div class="stat"><span class="muted">Verglichene Scans</span><b id="histScans">0</b></div>
+  </div>
+  <div id="historyArea" class="empty">Noch kein Verlauf vorhanden. Nach dem nächsten Scan wird ein Vergleich gespeichert.</div>
+ </section>
+ <section class="panel">
+  <h2 style="margin:0">Spiel- und App-Aufgaben</h2>
+  <div class="muted">Trage deine eigenen Ziele und Fortschritte ein. RTA überwacht keine Spielkonten automatisch.</div>
+  <div id="gameArea" class="empty">Importiere einen Scan mit App-/Spielaufgaben.</div>
+ </section>
+ <section class="panel">
+  <h2 style="margin:0">Umfrage-Ergebnisstatistik</h2>
+  <div class="muted">Erfasse freiwillig, was bei einer Umfrage tatsächlich passiert ist.</div>
+  <div class="stats" style="margin-top:12px">
+   <div class="stat"><span class="muted">Erfolgreich</span><b id="surveySuccess">0</b></div>
+   <div class="stat"><span class="muted">Abgebrochen / aussortiert</span><b id="surveyDrop">0</b></div>
+   <div class="stat"><span class="muted">Erhaltene RLT</span><b id="surveyEarned">0</b></div>
+   <div class="stat"><span class="muted">Erfasste Zeit</span><b id="surveyTime">0 min</b></div>
+  </div>
+  <div class="row">
+   <label>Umfrage auswählen<select id="surveyPick"><option value="">Umfrage auswählen …</option></select></label>
+   <label>Ergebnis<select id="surveyOutcome"><option value="success">Erfolgreich / vergütet</option><option value="screenout">Aus Zielgruppe gefallen</option><option value="broken">Abbruch / technischer Fehler</option></select></label>
+   <label>Dauer in Minuten<input id="surveyDuration" type="number" min="0" step="1" value="1"></label>
+  </div>
+  <div class="row"><label>Tatsächlich erhaltene RLT<input id="surveyActual" type="number" min="0" step="0.01" value="0"></label><label>Anbieter / Notiz<input id="surveyNote" placeholder="Optional"></label></div>
+  <div class="toolbar"><button id="saveSurveyResult">Ergebnis speichern</button><button class="secondary" id="exportSurveyResults">Statistik als JSON exportieren</button></div>
+  <div id="surveyLog" class="empty">Noch keine Umfrageergebnisse erfasst.</div>
+ </section>
+
+ <section class="panel">
+  <h2 style="margin:0">Umfrage-Arbeitsplan</h2>
+  <div class="row">
+   <label>Max. Umfragen pro Arbeitsblock<select id="batchSize"><option>2</option><option selected>3</option></select></label>
+   <label>Pause nach dem Block (Minuten)<input id="pauseMinutes" type="number" min="1" max="180" value="15"></label>
+  </div>
+  <div class="row">
+   <div><div class="muted">Im aktuellen Block erledigt</div><b id="batchCount" style="font-size:25px">0</b><div class="progress"><span id="batchBar"></span></div></div>
+   <div><div class="muted">Pausen-Timer</div><b id="timerText" style="font-size:25px">Nicht gestartet</b><div class="small">Timer ist eine freiwillige Arbeitspause, keine Tarn- oder Umgehungsfunktion.</div></div>
+  </div>
+  <div class="toolbar"><button id="doneSurvey">Umfrage als erledigt markieren</button><button class="secondary" id="startPause">15-Minuten-Pause starten</button><button class="secondary" id="resetBatch">Block zurücksetzen</button></div>
+ </section>
+ <section class="panel">
+  <h2 style="margin:0">Persönliches Profil – lokaler Entwurf</h2>
+  <div class="note">Diese Felder bleiben in diesem Browser auf deinem Gerät. In dieser Testversion werden sie nicht an Umfrageanbieter gesendet. Antworten müssen wahrheitsgemäß sein; persönliche Meinungsfragen entscheidest du selbst.</div>
+  <div class="row">
+   <label>Alter<input id="age" type="number" min="18" max="120" placeholder="z. B. 48"></label>
+   <label>Land<input id="country" placeholder="z. B. Deutschland"></label>
+   <label>Bundesland / Region<input id="region" placeholder="z. B. Berlin"></label>
+  </div>
+  <div class="row">
+   <label>Berufliche Situation<input id="employment" placeholder="Freiwillige Angabe"></label>
+   <label>Haushaltsgröße<input id="household" type="number" min="1" max="20" placeholder="Personen"></label>
+  </div>
+  <button id="saveProfile">Profil lokal speichern</button> <span id="profileSaved" class="small"></span>
+ </section>
+ <p class="small" style="text-align:center;margin:22px">RTA TestApp 0.1 · arbeitet lokal · keine Anmeldung · keine Cloud-API</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let offers=JSON.parse(localStorage.getItem('rta_offers')||'[]');
+let statuses=JSON.parse(localStorage.getItem('rta_statuses')||'{}');
+let batch=Number(localStorage.getItem('rta_batch')||0), timerEnd=Number(localStorage.getItem('rta_timer')||0), timerInterval;
+const save=()=>{localStorage.setItem('rta_offers',JSON.stringify(offers));localStorage.setItem('rta_statuses',JSON.stringify(statuses));localStorage.setItem('rta_batch',batch);};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function render(){
+ const surveys=offers.filter(x=>x.type==='survey'),tasks=offers.filter(x=>x.type==='task');
+ $('countAll').textContent=offers.length;$('countSurveys').textContent=surveys.length;$('countTasks').textContent=tasks.length;
+ $('countReward').textContent=offers.reduce((a,x)=>a+(Number(x.rewardValue)||0),0).toFixed(2)+' RLT';
+ let list=offers.filter(x=>($('filter').value==='all'||x.type===$('filter').value)&&JSON.stringify(x).toLowerCase().includes($('search').value.toLowerCase()));
+ if($('sort').value==='reward')list.sort((a,b)=>(b.rewardValue||0)-(a.rewardValue||0));
+ if($('sort').value==='rpm')list.sort((a,b)=>(b.rewardPerMinute||0)-(a.rewardPerMinute||0));
+ if($('sort').value==='name')list.sort((a,b)=>(a.title||'').localeCompare(b.title||''));
+ $('offerArea').innerHTML=list.length?'<table><thead><tr><th>Typ / Angebot</th><th>Anbieter</th><th>Dauer</th><th>Belohnung</th><th>RLT/min</th><th>Status</th></tr></thead><tbody>'+list.map((x)=>{let key=x.type+'|'+x.title+'|'+x.provider+'|'+x.reward;return `<tr><td><span class="tag ${x.type==='survey'?'survey':''}">${x.type==='survey'?'Umfrage':'Aufgabe'}</span><br><b>${esc(x.title)}</b></td><td>${esc(x.provider)}</td><td>${esc(x.duration||'–')}</td><td>${esc(x.reward||'–')}</td><td>${x.rewardPerMinute?Number(x.rewardPerMinute).toFixed(3):'–'}</td><td><select data-key="${esc(key)}" class="statusSelect"><option value="Neu" ${(!statuses[key]||statuses[key]==='Neu')?'selected':''}>Neu</option><option ${statuses[key]==='Gestartet'?'selected':''}>Gestartet</option><option ${statuses[key]==='In Arbeit'?'selected':''}>In Arbeit</option><option ${statuses[key]==='Erledigt'?'selected':''}>Erledigt</option><option ${statuses[key]==='Gutgeschrieben'?'selected':''}>Gutgeschrieben</option></select></td></tr>`}).join('')+'</tbody></table>':'<div class="empty">Keine passenden Angebote gefunden.</div>';
+ document.querySelectorAll('.statusSelect').forEach(el=>el.addEventListener('change',()=>{statuses[el.dataset.key]=el.value;save();}));
+ $('statusArea').innerHTML=Object.entries(statuses).filter(([k,v])=>v!=='Neu').map(([k,v])=>`<div style="padding:7px;border-bottom:1px solid #334155">${esc(k.split('|')[1])} <span class="tag">${esc(v)}</span></div>`).join('')||'Noch keine Statusänderungen.';
+ $('batchCount').textContent=batch;$('batchBar').style.width=Math.min(100,batch/Number($('batchSize').value)*100)+'%';
+}
+$('importBtn').onclick=()=>$('file').click();
+$('file').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let data=JSON.parse(await f.text());if(!Array.isArray(data.offers))throw Error('JSON enthält kein offers-Array.');offers=data.offers;save();processHistory(offers);render();renderGames();renderSurveyStats();alert('Import erfolgreich: '+offers.length+' Angebote.');}catch(err){alert('Import fehlgeschlagen: '+err.message)}e.target.value='';};
+['search','filter','sort','batchSize'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',render));
+$('clearBtn').onclick=()=>{if(confirm('Alle importierten Angebote und Statusdaten lokal löschen?')){offers=[];statuses={};save();render();}};
+$('doneSurvey').onclick=()=>{let max=Number($('batchSize').value);if(batch>=max){alert('Der Arbeitsblock ist voll. Starte deine Pause.');return;}batch++;save();render();if(batch>=max)alert('Arbeitsblock abgeschlossen. Du kannst jetzt deine Pause starten.');};
+$('startPause').onclick=()=>{let mins=Math.max(1,Math.min(180,Number($('pauseMinutes').value)||15));timerEnd=Date.now()+mins*60000;localStorage.setItem('rta_timer',timerEnd);tick();};
+$('resetBatch').onclick=()=>{batch=0;save();render();};
+function tick(){clearInterval(timerInterval);const update=()=>{let s=Math.max(0,Math.ceil((timerEnd-Date.now())/1000));$('timerText').textContent=s?String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'):'Pause beendet';if(!s){timerEnd=0;localStorage.removeItem('rta_timer');clearInterval(timerInterval);}};update();if(timerEnd)timerInterval=setInterval(update,1000);}
+function loadProfile(){['age','country','region','employment','household'].forEach(id=>$(id).value=localStorage.getItem('rta_profile_'+id)||'');}
+$('saveProfile').onclick=()=>{['age','country','region','employment','household'].forEach(id=>localStorage.setItem('rta_profile_'+id,$(id).value));$('profileSaved').textContent='Lokal gespeichert.';};
+loadProfile();render();tick();
+
+let scanHistory=JSON.parse(localStorage.getItem('rta_scan_history')||'[]');
+let surveyResults=JSON.parse(localStorage.getItem('rta_survey_results')||'[]');
+let gamePlans=JSON.parse(localStorage.getItem('rta_game_plans')||'{}');
+function keyOf(x){return [x.type,x.provider,x.title].map(v=>String(v||'').trim().toLowerCase()).join('|');}
+function processHistory(incoming){
+ const current=incoming.map(x=>({...x}));
+ const previous=scanHistory.length?scanHistory[scanHistory.length-1].offers:[];
+ const prevMap=new Map(previous.map(x=>[keyOf(x),x])), curMap=new Map(current.map(x=>[keyOf(x),x]));
+ const added=current.filter(x=>!prevMap.has(keyOf(x)));
+ const gone=previous.filter(x=>!curMap.has(keyOf(x)));
+ const changed=current.filter(x=>prevMap.has(keyOf(x)) && String(prevMap.get(keyOf(x)).reward||'')!==String(x.reward||''));
+ scanHistory.push({scannedAt:new Date().toISOString(),offers:current,added:added.map(keyOf),gone:gone.map(keyOf),changed:changed.map(keyOf)});
+ if(scanHistory.length>30)scanHistory=scanHistory.slice(-30);
+ localStorage.setItem('rta_scan_history',JSON.stringify(scanHistory));
+ renderHistory(added,gone,changed);
+}
+function renderHistory(added=null,gone=null,changed=null){
+ const last=scanHistory[scanHistory.length-1];
+ if(!last){$('historyArea').textContent='Noch kein Verlauf vorhanden.';$('histNew').textContent='0';$('histGone').textContent='0';$('histChanged').textContent='0';$('histScans').textContent='0';return;}
+ $('histNew').textContent=last.added.length;$('histGone').textContent=last.gone.length;$('histChanged').textContent=last.changed.length;$('histScans').textContent=scanHistory.length;
+ const label=(arr,txt)=>arr.length?`<div style="margin:8px 0"><b>${txt} (${arr.length})</b><ul>${arr.map(x=>`<li>${esc(x.title)} – ${esc(x.provider||'unbekannt')} (${esc(x.reward||'–')})</li>`).join('')}</ul></div>`:`<div class="small">${txt}: keine</div>`;
+ const prev=scanHistory.length>1?scanHistory[scanHistory.length-2].offers:[];
+ const pm=new Map(prev.map(x=>[keyOf(x),x]));
+ const changedItems=last.offers.filter(x=>last.changed.includes(keyOf(x))).map(x=>({...x,old:pm.get(keyOf(x))?.reward}));
+ $('historyArea').innerHTML=label(last.offers.filter(x=>last.added.includes(keyOf(x))),'Neu')+
+ label(prev.filter(x=>last.gone.includes(keyOf(x))),'Nicht mehr im Scan')+
+ (changedItems.length?'<div style="margin:8px 0"><b>Belohnung geändert ('+changedItems.length+')</b><ul>'+changedItems.map(x=>`<li>${esc(x.title)}: ${esc(x.old)} → ${esc(x.reward)}</li>`).join('')+'</ul></div>':'<div class="small">Belohnung geändert: keine</div>')+
+ `<div class="small">Letzter Vergleich: ${new Date(last.scannedAt).toLocaleString('de-DE')}</div>`;
+}
+function renderGames(){
+ const tasks=offers.filter(x=>x.type==='task');
+ if(!tasks.length){$('gameArea').textContent='Keine App-/Spielaufgaben im aktuellen Scan.';return;}
+ $('gameArea').innerHTML=tasks.map(x=>{
+  const k=keyOf(x),p=gamePlans[k]||{};
+  return `<div class="gameRow"><b>${esc(x.title)}</b> <span class="tag">${esc(x.reward||'')}</span><div class="gameGrid">
+   <label>Ziel / Meilenstein<input data-game="${esc(k)}" data-field="goal" value="${esc(p.goal||'')}" placeholder="z. B. Level 20"></label>
+   <label>Aktueller Stand<input data-game="${esc(k)}" data-field="progress" value="${esc(p.progress||'')}" placeholder="z. B. Level 8"></label>
+   <label>Frist<input data-game="${esc(k)}" data-field="deadline" type="date" value="${esc(p.deadline||'')}"></label>
+   <label>Status<select data-game="${esc(k)}" data-field="status"><option ${(!p.status||p.status==='Neu')?'selected':''}>Neu</option><option ${p.status==='Gestartet'?'selected':''}>Gestartet</option><option ${p.status==='In Arbeit'?'selected':''}>In Arbeit</option><option ${p.status==='Ziel erreicht'?'selected':''}>Ziel erreicht</option><option ${p.status==='Belohnung erhalten'?'selected':''}>Belohnung erhalten</option></select></label>
+  </div><div class="toolbar"><button class="mini saveGame" data-game="${esc(k)}">Fortschritt speichern</button></div></div>`;
+ }).join('');
+ document.querySelectorAll('.saveGame').forEach(btn=>btn.onclick=()=>{
+  const k=btn.dataset.game;gamePlans[k]=gamePlans[k]||{};
+  document.querySelectorAll(`[data-game="${CSS.escape(k)}"]`).forEach(el=>{if(el.dataset.field)gamePlans[k][el.dataset.field]=el.value;});
+  localStorage.setItem('rta_game_plans',JSON.stringify(gamePlans));btn.textContent='Gespeichert ✓';setTimeout(()=>btn.textContent='Fortschritt speichern',1200);
+ });
+}
+function renderSurveyStats(){
+ const success=surveyResults.filter(x=>x.outcome==='success');
+ const drops=surveyResults.filter(x=>x.outcome!=='success');
+ $('surveySuccess').textContent=success.length;$('surveyDrop').textContent=drops.length;
+ $('surveyEarned').textContent=success.reduce((a,x)=>a+(Number(x.actual)||0),0).toFixed(2);
+ $('surveyTime').textContent=surveyResults.reduce((a,x)=>a+(Number(x.duration)||0),0)+' min';
+ $('surveyPick').innerHTML='<option value="">Umfrage auswählen …</option>'+offers.filter(x=>x.type==='survey').map(x=>`<option value="${esc(keyOf(x))}">${esc(x.title)} · ${esc(x.reward)}</option>`).join('');
+ $('surveyLog').innerHTML=surveyResults.length?surveyResults.slice().reverse().slice(0,12).map(x=>`<div style="padding:7px;border-bottom:1px solid #334155">${esc(x.title)} · ${x.outcome==='success'?'Vergütet':x.outcome==='screenout'?'Aus Zielgruppe gefallen':'Abbruch/Fehler'} · ${esc(x.duration)} min · ${esc(x.actual)} RLT ${x.note?'· '+esc(x.note):''}</div>`).join(''):'Noch keine Umfrageergebnisse erfasst.';
+}
+$('saveSurveyResult').onclick=()=>{
+ const k=$('surveyPick').value;if(!k){alert('Bitte zuerst eine Umfrage auswählen.');return;}
+ const item=offers.find(x=>keyOf(x)===k);surveyResults.push({title:item?.title||k,provider:item?.provider||'',outcome:$('surveyOutcome').value,duration:Number($('surveyDuration').value)||0,actual:Number($('surveyActual').value)||0,note:$('surveyNote').value,at:new Date().toISOString()});
+ localStorage.setItem('rta_survey_results',JSON.stringify(surveyResults));renderSurveyStats();
+};
+$('exportSurveyResults').onclick=()=>{const blob=new Blob([JSON.stringify(surveyResults,null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='RTA-Umfrage-Ergebnisse.json';a.click();URL.revokeObjectURL(u);};
+$('clearHistory').onclick=()=>{if(confirm('Den Angebotsverlauf löschen?')){scanHistory=[];localStorage.removeItem('rta_scan_history');renderHistory();}};
+
+renderHistory();renderGames();renderSurveyStats();
+
+async function checkBridge(){
+ try{
+  const r=await fetch('/api/latest',{cache:'no-store'});
+  if(!r.ok) throw new Error('Lokaler Dienst antwortet nicht');
+  const payload=await r.json();
+  $('bridgeStatus').textContent='Lokale Verbindung aktiv · letzter Scan: '+(payload.scannedAt?new Date(payload.scannedAt).toLocaleString('de-DE'):'noch kein Scan empfangen');
+  if(payload.offers && payload.scannedAt && payload.scannedAt!==localStorage.getItem('rta_last_scan')){
+    offers=payload.offers;
+    localStorage.setItem('rta_last_scan',payload.scannedAt);
+    save();processHistory(offers);render();renderGames();renderSurveyStats();
+    $('bridgeStatus').textContent='Scan automatisch übernommen · '+offers.length+' Angebote · '+new Date(payload.scannedAt).toLocaleTimeString('de-DE');
+  }
+ }catch(e){
+  $('bridgeStatus').textContent='Keine Verbindung zum lokalen Dienst. Bitte RTA_Starten.bat ausführen und diese Seite über http://127.0.0.1:8765 öffnen.';
+ }
+}
+setInterval(checkBridge,2000);
+checkBridge();
+
+</script>
+</body></html>
